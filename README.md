@@ -4,6 +4,7 @@ Python package for the Distributed Cognitive Toolkit (DCT), a toolkit for buildi
 
 The package provides:
 
+- `Mind`, a standalone in-process coordinator for codelets and memories.
 - `PythonCodelet`, an abstract base class for Python codelets.
 - Helpers for reading and writing memory objects through local JSON files, Redis, MongoDB, or HTTP/TCP endpoints.
 - A small Flask API server for node/codelet metadata and memory access.
@@ -58,6 +59,65 @@ Instantiate a codelet with the directory that contains `fields.json`:
 ```python
 codelet = MyCodelet(name="my-codelet", root_codelet_dir="/path/to/codelet")
 codelet.run()
+```
+
+## Standalone Mind
+
+The original DCT runtime is distributed: a mind is made of nodes, and each node supervises codelet processes, a server, and optional Redis memory. For local applications, `Mind` gives you the same conceptual structure in one Python process.
+
+```python
+import dct
+from dct.codelets import PythonCodelet
+
+
+class Writer(PythonCodelet):
+    def proc(self, activation: float) -> None:
+        dct.set_memory_objects_by_name(
+            str(self.root_codelet_dir),
+            "workspace",
+            "value",
+            "hello",
+            "outputs",
+        )
+
+
+mind = dct.Mind(base_dir="./standalone-mind")
+mind.add_memory("workspace", "json", initial_value={"value": None})
+mind.add_codelet(Writer, outputs=["workspace"])
+mind.run(steps=1)
+```
+
+Supported standalone memory types:
+
+- `json`, stored as local JSON files. This is normalized internally to DCT's existing `local` memory type.
+- `local`, equivalent to `json`.
+- `redis`, using `host:port` memory locations.
+- `mongo`, using MongoDB connection strings.
+
+By default, standalone Redis memories point to `127.0.0.1:6379`. You can ask `Mind` to start a Redis subprocess:
+
+```python
+mind = dct.Mind(start_redis=True, redis_port=6380)
+mind.add_memory("workspace", "redis")
+mind.start()
+
+# run your app
+
+mind.stop()
+```
+
+For deterministic tests or scripts, prefer:
+
+```python
+mind.run_once()
+mind.run(steps=10)
+```
+
+For long-running codelets, use:
+
+```python
+mind.start()
+mind.stop()
 ```
 
 ## Memory Helpers

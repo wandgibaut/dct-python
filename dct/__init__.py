@@ -18,6 +18,8 @@ import json
 __version__ = '0.1.5'
 __author__ = 'Wandemberg Gibaut'
 
+from dct.mind import Mind
+
 
 def get_memory_object(memory_name: str, ip_port: str, conn_type: str) -> Any:
     '''
