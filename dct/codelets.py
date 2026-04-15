@@ -10,124 +10,106 @@
 #                                                                             #
 # ****************************************************************************#
 
+
+from abc import ABC, abstractmethod
+from pathlib import Path
+from typing import Any, Optional, Union
 import json
-import sys
-import os
 import time
 
-class PythonCodelet:
-    '''
+JsonValue = Union[dict[str, Any], list[Any], str, int, float, bool, None]
+JsonObject = dict[str, JsonValue]
+
+
+class PythonCodelet(ABC):
+    """
     Base class for Codelets created in Python
         :param name: name of the codelet
         :param root_codelet_dir: path to the codelet directory
-    '''
-    def __init__(self, name=None, root_codelet_dir=None):
+    """
+
+    def __init__(self, name: Optional[str] = None, root_codelet_dir: Optional[Union[str, Path]] = None) -> None:
         if root_codelet_dir is None:
-            os.chdir(os.path.dirname(__file__))
-            root_codelet_dir = os.getcwd()
-        self.root_codelet_dir = root_codelet_dir
+            root_codelet_dir = Path(__file__).resolve().parent
+        self.root_codelet_dir = Path(root_codelet_dir)
         self.name = name
-        self.fields = self.read_all_field()
+        self.fields: JsonObject = self.read_all_field()
 
-    def read_field(self, field):
-        with open(self.root_codelet_dir + '/fields.json', 'r') as json_data:
-            jsonData = json.load(json_data)
-            value = jsonData[field]
-        return value
+    @property
+    def fields_path(self) -> Path:
+        return self.root_codelet_dir / "fields.json"
+
+    def read_field(self, field: str) -> JsonValue:
+        return self.read_all_field()[field]
     
-    def read_all_field(self):
-        with open(self.root_codelet_dir + '/fields.json', 'r') as json_data:
-            jsonData = json.load(json_data)
-        return jsonData
+    def read_all_field(self) -> JsonObject:
+        with self.fields_path.open(encoding="utf-8") as json_data:
+            return json.load(json_data)
 
-    def write_all_field(self):
-        with open(self.root_codelet_dir + '/fields.json', 'w+') as json_data:
+    def write_all_field(self) -> None:
+        with self.fields_path.open("w", encoding="utf-8") as json_data:
             json.dump(self.fields, json_data)
-            json_data.truncate()
     
     
-    def change_field(self, field, value):
+    def change_field(self, field: str, value: JsonValue) -> None:
         self.fields[field] = value
         self.write_all_field()
-        '''with open(self.root_codelet_dir + '/fields.json', 'r+') as json_data:
-            jsonData = json.load(json_data)
-            jsonData[field] = value
-            # print(jsonData[field])
 
-            json_data.seek(0)  # rewind
-            json.dump(jsonData, json_data)
-            json_data.truncate()'''
-
-    def add_entry(self, field, data):
-        with open(self.root_codelet_dir + '/fields.json', 'r+') as json_data:
-            jsonData = json.load(json_data)
-            vector = jsonData[field]
+    def add_entry(self, field: str, data: str) -> None:
+        with self.fields_path.open("r+", encoding="utf-8") as json_data:
+            json_data_contents = json.load(json_data)
+            vector = json_data_contents[field]
             vector.append(json.loads(data))
-            jsonData[field] = vector
+            json_data_contents[field] = vector
 
             json_data.seek(0)  # rewind
-            json.dump(jsonData, json_data)
+            json.dump(json_data_contents, json_data)
             json_data.truncate()
 
-    def remove_entry(self, field, name):
-        with open(self.root_codelet_dir + '/fields.json', 'r+') as json_data:
-            jsonData = json.load(json_data)
-            vector = jsonData[field]
+    def remove_entry(self, field: str, name: str) -> Optional[dict[str, Any]]:
+        with self.fields_path.open("r+", encoding="utf-8") as json_data:
+            json_data_contents = json.load(json_data)
+            vector = json_data_contents[field]
 
             for i in vector:
                 for k, v in i.items():
                     if v == name:
                         vector.remove(i)
+                        json_data_contents[field] = vector
+                        json_data.seek(0)  # rewind
+                        json.dump(json_data_contents, json_data)
+                        json_data.truncate()
                         return i
 
-            jsonData[field] = vector
-            # print(jsonData[field])
+        return None
+
+    def set_field_list(self, field: str, data_list: list[str]) -> None:
+        json_list = [json.loads(data_string) for data_string in data_list]
+
+        with self.fields_path.open("r+", encoding="utf-8") as json_data:
+            json_data_contents = json.load(json_data)
+            json_data_contents[field] = json_list
 
             json_data.seek(0)  # rewind
-            json.dump(jsonData, json_data)
-            json_data.truncate()
-
-    def set_field_list(self, field, dataList):
-        jsonList = []
-        for dataString in dataList:
-            jsonList.append(json.loads(dataString))
-
-        with open(self.root_codelet_dir + '/fields.json', 'r+') as json_data:
-            jsonData = json.load(json_data)
-            jsonData[field] = jsonList
-            # print(jsonData[field])
-
-            json_data.seek(0)  # rewind
-            json.dump(jsonData, json_data)
+            json.dump(json_data_contents, json_data)
             json_data.truncate()
 
     @staticmethod
-    def convert(self, string):
-        li = list(string.split(";"))
-        return li
+    def convert(string: str) -> list[str]:
+        return string.split(";")
 
-    def run(self):
-        while self.fields['enable'] == True:
-            while self.fields['lock'] == False:
+    def run(self) -> None:
+        while bool(self.fields.get("enable")):
+            if not bool(self.fields.get("lock")):
                 activation = self.calculate_activation()
                 self.proc(activation)
-                time.sleep(float(self.fields['timestep']))
-        '''while self.read_field('enable') == 'true':
-            while self.read_field('lock') == 'false':
-                activation = self.calculate_activation()
-                self.proc(activation)
-                time.sleep(float(self.read_field('timestep')))'''
+            time.sleep(float(self.fields.get("timestep", 0)))
+            self.fields = self.read_all_field()
 
-        sys.exit()
-
-    def calculate_activation(self):
-        ########################################
-        # Default Activation ##
-        #print("default activation")
+    def calculate_activation(self) -> float:
+        """Return the codelet activation used by ``proc``."""
         return 0
 
-    def proc(self, activation):
-        ########################################
-        # Default proc ##
-        #print("default proc")
-        pass
+    @abstractmethod
+    def proc(self, activation: float) -> None:
+        """Execute one codelet processing step."""

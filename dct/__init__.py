@@ -10,22 +10,16 @@
 #                                                                             #
 # ****************************************************************************#
 
-import json
-import requests
-import socket
-import redis
-from pymongo import MongoClient
-from bson import json_util
-from dct import codelets
-#from dct import parser
-from dct import server
-from dct import utils
+from __future__ import annotations
 
-__version__ = '0.1.0'
+from typing import Any, Optional
+import json
+
+__version__ = '0.1.5'
 __author__ = 'Wandemberg Gibaut'
 
 
-def get_memory_object(memory_name : str, ip_port : str, conn_type : str) -> list[dict]:
+def get_memory_object(memory_name: str, ip_port: str, conn_type: str) -> Any:
     '''
     Get a memory object given its name, ip/port and type
         :param memory_name: name of the memory object
@@ -45,7 +39,7 @@ def get_memory_object(memory_name : str, ip_port : str, conn_type : str) -> list
     return None
 
 #TODO: change TCP method
-def set_memory_object(memory_name : str, ip_port : str, conn_type : str, field : str, value : object) -> int:
+def set_memory_object(memory_name: str, ip_port: str, conn_type: str, field: str, value: Any) -> int:
     '''
     Set a memory object given its name, ip/port, type, field and value
         :param memory_name: name of the memory object
@@ -67,7 +61,7 @@ def set_memory_object(memory_name : str, ip_port : str, conn_type : str, field :
     return -1
 
 
-def get_memory_objects_by_name(root_codelet_dir : str, memory_name : str, inputOrOutput : str) -> list[dict]:
+def get_memory_objects_by_name(root_codelet_dir: str, memory_name: str, inputOrOutput: str) -> Optional[list[Any]]:
     '''
     Get a memory object given its name
         :param root_codelet_dir: root directory of the codelet
@@ -88,7 +82,7 @@ def get_memory_objects_by_name(root_codelet_dir : str, memory_name : str, inputO
         return None
 
 
-def set_memory_objects_by_name(root_codelet_dir : str, memory_name : str, field : str, value : object, inputOrOutput : str) -> int:
+def set_memory_objects_by_name(root_codelet_dir: str, memory_name: str, field: str, value: Any, inputOrOutput: str) -> int:
     '''
     Set a memory object given its name, field and value
         :param root_codelet_dir: root directory of the codelet
@@ -108,7 +102,7 @@ def set_memory_objects_by_name(root_codelet_dir : str, memory_name : str, field 
         return 0
 
 
-def get_memory_objects_by_group(root_codelet_dir : str, group : str, inputOrOutput : str) -> list[dict]:
+def get_memory_objects_by_group(root_codelet_dir: str, group: str, inputOrOutput: str) -> Optional[list[Any]]:
     '''
     Get memory objects given their group
         :param root_codelet_dir: root directory of the codelet
@@ -129,7 +123,7 @@ def get_memory_objects_by_group(root_codelet_dir : str, group : str, inputOrOutp
         return None
 
 
-def set_memory_objects_by_group(root_codelet_dir : str, group : str, field : str, value : object, inputOrOutput : str) -> int:
+def set_memory_objects_by_group(root_codelet_dir: str, group: str, field: str, value: Any, inputOrOutput: str) -> int:
     '''
     Set memory objects given their group, field and value
         :param root_codelet_dir: root directory of the codelet
@@ -149,7 +143,7 @@ def set_memory_objects_by_group(root_codelet_dir : str, group : str, field : str
         return 0
 
 
-def get_all_memory_objects(root_codelet_dir : str, inputOrOutput : str) -> list[dict]:
+def get_all_memory_objects(root_codelet_dir: str, inputOrOutput: str) -> Optional[list[Any]]:
     '''
     Get all memory objects
         :param root_codelet_dir: root directory of the codelet
@@ -168,7 +162,7 @@ def get_all_memory_objects(root_codelet_dir : str, inputOrOutput : str) -> list[
         return None
 
 
-def get_redis_memory(host_port : str, memory_name : str) -> dict:
+def get_redis_memory(host_port: str, memory_name: str) -> Optional[dict[str, Any]]:
     '''
     Get a redis memory object given its name and ip/port
         :param host_port: ip/port of the memory object
@@ -180,6 +174,8 @@ def get_redis_memory(host_port : str, memory_name : str) -> dict:
     host = url[0]
     port = url[1]
     try:
+        import redis
+
         client = redis.Redis(host=host, port=port)
         return json.loads(client.get(memory_name))
     except Exception as e:
@@ -187,7 +183,13 @@ def get_redis_memory(host_port : str, memory_name : str) -> dict:
         return None
 
 
-def set_redis_memory(host_port : str, memory_name : str, field : str, value : object, full_memory : dict = None) -> int:
+def set_redis_memory(
+    host_port: str,
+    memory_name: str,
+    field: Optional[str],
+    value: Any,
+    full_memory: Optional[dict[str, Any]] = None,
+) -> int:
     '''
     Set a redis memory object given its name, ip/port, field and value
         :param host_port: ip/port of the memory object
@@ -201,11 +203,16 @@ def set_redis_memory(host_port : str, memory_name : str, field : str, value : ob
     host = url[0]
     port = url[1]
 
+    import redis
+
     client = redis.Redis(host=host, port=port)
 
     if full_memory is not None:
         client.set(memory_name, json.dumps(full_memory))
         return 0
+
+    if field is None:
+        return -1
 
     
     try:
@@ -218,7 +225,7 @@ def set_redis_memory(host_port : str, memory_name : str, field : str, value : ob
     return 0
 
 
-def get_mongo_memory(host_port : str, memory_name : str) -> dict:
+def get_mongo_memory(host_port: str, memory_name: str) -> Optional[dict[str, Any]]:
     '''
     Get a mongo memory object given its name and ip/port
         :param host_port: ip/port of the memory object
@@ -226,6 +233,9 @@ def get_mongo_memory(host_port : str, memory_name : str) -> dict:
         :return: memory object or None if error
         :rtype: dict
     '''
+    from bson import json_util
+    from pymongo import MongoClient
+
     client = MongoClient(host_port)
     try:
         base = client['database-raw-memory']
@@ -237,7 +247,7 @@ def get_mongo_memory(host_port : str, memory_name : str) -> dict:
         return None
 
 
-def set_mongo_memory(host_port : str, memory_name : str, field : str, value : object) -> int:
+def set_mongo_memory(host_port: str, memory_name: str, field: str, value: Any) -> int:
     '''
     Set a mongo memory object given its name, ip/port, field and value
         :param host_port: ip/port of the memory object
@@ -247,6 +257,8 @@ def set_mongo_memory(host_port : str, memory_name : str, field : str, value : ob
         :return: 0 if success, -1 if error
         :rtype: int
     '''
+    from pymongo import MongoClient
+
     client = MongoClient(host_port)
     base = client['database-raw-memory']
     collection = base[convert(":", memory_name)[0]]
@@ -259,7 +271,7 @@ def set_mongo_memory(host_port : str, memory_name : str, field : str, value : ob
     return 0
 
 
-def get_tcp_memory(host : str, port : str, memory_name : str) -> dict:
+def get_tcp_memory(host: str, port: str, memory_name: str) -> Any:
     '''
     Get a tcp memory object given its name, ip and port
         :param host: ip of the memory object
@@ -268,11 +280,13 @@ def get_tcp_memory(host : str, port : str, memory_name : str) -> dict:
         :return: memory object or None if error
         :rtype: dict
     '''
+    import requests
+
     response = requests.get(f'http://{host}:{port}/get_memory/{memory_name}')
     return response.json()
 
 
-def set_tcp_memory(host : str, port : str, memory_name : str, field : str, value : object) -> requests.Response:
+def set_tcp_memory(host: str, port: str, memory_name: str, field: str, value: Any) -> Any:
     '''
     Set a tcp memory object given its name, ip, port, field and value
         :param host: ip of the memory object
@@ -283,11 +297,13 @@ def set_tcp_memory(host : str, port : str, memory_name : str, field : str, value
         :return: response of the request
         :rtype: requests.Response
     '''
+    import requests
+
     response = requests.post(f'http://{host}:{port}/set_memory/', json={'memory_name': memory_name, 'field': field, 'value': value})
     return response
 
 
-def get_local_memory(path : str, memory_name : str) -> dict:
+def get_local_memory(path: str, memory_name: str) -> dict[str, Any]:
     '''
     Get a local memory object given its name and path
         :param path: path of the memory object
@@ -299,7 +315,7 @@ def get_local_memory(path : str, memory_name : str) -> dict:
         return json.load(json_data)
 
 
-def set_local_memory(path : str, memory_name : str, field : str, value : object) -> int:
+def set_local_memory(path: str, memory_name: str, field: str, value: Any) -> int:
     '''
     Set a local memory object given its name, path, field and value
         :param path: path of the memory object
@@ -320,8 +336,7 @@ def set_local_memory(path : str, memory_name : str, field : str, value : object)
     return 0
 
 
-#TODO: solve this issue
-def add_memory_to_group(root_codelet_dir : str, memory_name : str, newGroup : str, inputOrOutput : str) -> int:
+def add_memory_to_group(root_codelet_dir: str, memory_name: str, newGroup: str, inputOrOutput: str) -> int:
     '''
     Add a memory to a group
         :param root_codelet_dir: root directory of the codelet
@@ -331,13 +346,25 @@ def add_memory_to_group(root_codelet_dir : str, memory_name : str, newGroup : st
         :return: 0 if success, -1 if error
         :rtype: int
     '''
-    memory_group = get_memory_objects_by_group(root_codelet_dir, memory_name, inputOrOutput)['group']
-    memory_group.append(newGroup)
+    memories = get_memory_objects_by_name(root_codelet_dir, memory_name, inputOrOutput)
+    if not memories:
+        return -1
+
+    memory = memories[0]
+    if not isinstance(memory, dict):
+        return -1
+
+    memory_group = memory.get('group', [])
+    if not isinstance(memory_group, list):
+        return -1
+
+    if newGroup not in memory_group:
+        memory_group.append(newGroup)
     set_memory_objects_by_name(root_codelet_dir, memory_name, 'group', memory_group, inputOrOutput)
     return 0
 
 
-def get_node_info(host : str, port : str) -> dict:
+def get_node_info(host: str, port: str) -> dict[str, Any]:
     '''
     Get the node info
         :param host: ip of the node
@@ -360,10 +387,12 @@ def get_node_info(host : str, port : str) -> dict:
     #        raise Exception
     #    #return answer
 
+    import requests
+
     response = requests.get(f'http://{host}:{port}//get_node_info')
     return response.json()
 
-def get_codelet_info(host : str, port : str, codelet_name : str) -> dict:
+def get_codelet_info(host: str, port: str, codelet_name: str) -> dict[str, Any]:
     '''
     Get the codelet info
         :param host: ip of the node
@@ -387,9 +416,10 @@ def get_codelet_info(host : str, port : str, codelet_name : str) -> dict:
     #        raise Exception
     #    return answer
 
+    import requests
+
     response = requests.get(f'http://{host}:{port}//get_codelet_info/{codelet_name}')
     return response.json()
 
-def convert(separator, string):
-    li = list(string.split(separator))
-    return li
+def convert(separator: str, string: str) -> list[str]:
+    return string.split(separator)

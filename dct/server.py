@@ -10,77 +10,93 @@
 #                                                                             #
 # ****************************************************************************#
 
-import os
-import sys
+from __future__ import annotations
+
 import json
 import os
+import sys
 import glob
 import configparser
+from collections.abc import Iterator
+from typing import Any, Optional, Union
 import requests
 from flask import Flask, request, Response
 import dct
 
 
-root_node_dir = os.getenv('ROOT_NODE_DIR')
+root_node_dir = os.getenv('ROOT_NODE_DIR', os.getcwd())
 death_threshold = 3
 death_votes = 0
 
 app = Flask(__name__)
 
 
+def _iter_fields_files() -> Iterator[str]:
+    return glob.iglob(os.path.join(root_node_dir, '**', 'fields.json'), recursive=True)
+
+
+def _request_json() -> dict[str, Any]:
+    request_data = request.get_json()
+    if isinstance(request_data, str):
+        request_data = json.loads(request_data)
+    if not isinstance(request_data, dict):
+        raise ValueError("JSON body must be an object")
+    return request_data
+
+
+def _redis_url_from_request() -> str:
+    host, port = request.host.rsplit(':', 1)
+    return f'{host}:{int(port) + 1}'
+
 
 @app.route('/')
-def home():
+def home() -> str:
     return "API."
 
 
 @app.route('/get_memory/<memory_name>')
-def get_memory(memory_name : str) -> Response:
+def get_memory(memory_name: str) -> Union[list[dict[str, Any]], Response]:
     '''
     API routine to return a memory object
         :param memory_name: name of the memory object
         :return: memory object
         :rtype: Response
     '''
-    for filename in glob.iglob(root_node_dir + '/**', recursive=True):
-        if filename.__contains__('fields.json'):
-            with open(filename, 'r+') as json_data:
-                jsonData = json.load(json_data)
-                for inputOrOutput in ['inputs', 'outputs']:
-                    vector = jsonData[inputOrOutput]
-                    answer = []
-                    for entry in vector:
-                        if entry['name'] == memory_name:
-                            #file_memory = entry['file']
-                            answer.append(dct.get_memory_object(memory_name, entry['ip/port'], entry['type']))
-                    if len(answer) != 0:
-                        return answer
+    for filename in _iter_fields_files():
+        with open(filename, encoding='utf-8') as json_data:
+            json_data_contents = json.load(json_data)
+            for input_or_output in ['inputs', 'outputs']:
+                vector = json_data_contents[input_or_output]
+                answer = []
+                for entry in vector:
+                    if entry['name'] == memory_name:
+                        answer.append(dct.get_memory_object(memory_name, entry['ip/port'], entry['type']))
+                if answer:
+                    return answer
     return Response(status=404, headers={})
 
 
 @app.route('/set_memory/', methods=['POST'])
-def set_memory():
-    request_data = json.dumps(json.loads(request.get_json()))
+def set_memory() -> Response:
+    request_data = _request_json()
     memory_name = request_data['memory_name']
     field = request_data['field']
     value = request_data['value']
 
-    for filename in glob.iglob(root_node_dir + '/**', recursive=True):
-        if filename.__contains__('fields.json'):
-            with open(filename, 'r+') as json_data:
-                jsonData = json.load(json_data)
-                for inputOrOutput in ['inputs', 'outputs']:
-                    vector = jsonData[inputOrOutput]
-                    for entry in vector:
-                        if entry['name'] == memory_name:
-                            #file_memory = entry['file']
-                            dct.set_memory_object(memory_name, entry['ip/port'], entry['type'], field, value)
-                            return Response(status=200, headers={})
+    for filename in _iter_fields_files():
+        with open(filename, encoding='utf-8') as json_data:
+            json_data_contents = json.load(json_data)
+            for input_or_output in ['inputs', 'outputs']:
+                vector = json_data_contents[input_or_output]
+                for entry in vector:
+                    if entry['name'] == memory_name:
+                        dct.set_memory_object(memory_name, entry['ip/port'], entry['type'], field, value)
+                        return Response(status=200, headers={})
     return Response(status=404, headers={})
 
 
 @app.route('/get_idea/<idea_name>')
-def get_idea(idea_name : str) -> Response:
+def get_idea(idea_name: str) -> str:
     '''
     API routine to return a memory object
         :param idea_name: name of the memory object
@@ -88,22 +104,14 @@ def get_idea(idea_name : str) -> Response:
         :rtype: Response
     '''
     
-    url = args[0].split(':')
-    redis_url = f'{url[0]}:{str(int(url[1]) + 1)}'
+    redis_url = _redis_url_from_request()
     return json.dumps(dct.get_redis_memory(redis_url, idea_name))  # dict
     
 
 @app.route('/set_idea/', methods=['POST'])
-def set_idea():
-    #print(request.get_json())
-    #json.loads(request.get_data())
-    if type(request.get_json()) == dict:
-        request_data = request.get_json()
-    else:
-        request_data = json.loads(request.get_json())
-
-    url = args[0].split(':')
-    redis_url = f'{url[0]}:{str(int(url[1]) + 1)}'
+def set_idea() -> Response:
+    request_data = _request_json()
+    redis_url = _redis_url_from_request()
 
     if 'full_idea' in request_data:
         full_idea = validate_idea(request_data['full_idea'])
@@ -121,77 +129,73 @@ def set_idea():
     return Response(status=200, headers={})
 
 @app.route('/get_codelet_info/<codelet_name>')
-def get_codelet_info(codelet_name):
+def get_codelet_info(codelet_name: str) -> Union[str, Response]:
     file_fields = None
-    for filename in glob.iglob(root_node_dir + '/**', recursive=True):
-        if filename.__contains__(codelet_name + '/fields.json'):
+    for filename in _iter_fields_files():
+        if filename.endswith(os.path.join(codelet_name, 'fields.json')):
             file_fields = filename
     if file_fields is None:
         return Response(status=404, headers={})
-    with open(file_fields, 'r+') as json_data:
+    with open(file_fields, encoding='utf-8') as json_data:
         fields = json.dumps(json.load(json_data))
         return fields
 
 @app.route('/get_node_info')
-def get_node_info():
-    print(root_node_dir )
+def get_node_info() -> str:
     number_of_codelets = 0
     input_ips = []
     output_ips = []
-    for filename in glob.iglob(root_node_dir + '/**', recursive=True):
-        if filename.__contains__('fields.json'):
-            number_of_codelets += 1
-            with open(filename, 'r+') as json_data:
-                fields = json.load(json_data)
-                add_inputs = [item['ip/port'] for item in fields['inputs']]
-                add_outputs = [item['ip/port'] for item in fields['outputs']]
-                for entry in add_inputs:
-                    if entry not in input_ips:
-                        input_ips.append(entry)
-                for entry in add_outputs:
-                    if entry not in output_ips:
-                        output_ips.append(entry)
+    for filename in _iter_fields_files():
+        number_of_codelets += 1
+        with open(filename, encoding='utf-8') as json_data:
+            fields = json.load(json_data)
+            add_inputs = [item['ip/port'] for item in fields['inputs']]
+            add_outputs = [item['ip/port'] for item in fields['outputs']]
+            for entry in add_inputs:
+                if entry not in input_ips:
+                    input_ips.append(entry)
+            for entry in add_outputs:
+                if entry not in output_ips:
+                    output_ips.append(entry)
 
     answer = {'number_of_codelets': number_of_codelets, 'input_ips': input_ips, 'output_ips': output_ips}
     return json.dumps(answer)
 
-@staticmethod
-def convert(string):
-    li = list(string.split("_"))
-    return li
+def convert(string: str) -> list[str]:
+    return string.split("_")
 
-def read_param():
+def read_param() -> configparser.ConfigParser:
     config = configparser.ConfigParser()
-    config.read(root_node_dir + '/param.ini', encoding='utf-8')
+    config.read(os.path.join(root_node_dir, 'param.ini'), encoding='utf-8')
     return config
 
-def set_param(section, field, value):
+def set_param(section: str, field: str, value: str) -> None:
     config = read_param()
     config.set(section, field, value)
-    with open(root_node_dir + '/param.ini', 'w') as configfile:
+    with open(os.path.join(root_node_dir, 'param.ini'), 'w', encoding='utf-8') as configfile:
         config.write(configfile)
 
-def remove_param(section, field):
+def remove_param(section: str, field: str) -> None:
     config = read_param()
     config.remove_option(section, field)
-    with open(root_node_dir + '/param.ini', 'w') as configfile:
+    with open(os.path.join(root_node_dir, 'param.ini'), 'w', encoding='utf-8') as configfile:
         config.write(configfile)
 
 
 @app.route('/kill_codelet/<codelet_name>')
-def kill_codelet(codelet_name):
+def kill_codelet(codelet_name: str) -> str:
     remove_param('active_codelets', codelet_name)
     return 'codelet will be stopped soon!'
 
 @app.route('/run_codelet/<codelet_name>')
-def run_codelet(codelet_name):
+def run_codelet(codelet_name: str) -> str:
     config = read_param()
     if config.has_option('internal_codelets', codelet_name):
         set_param('active_codelets', codelet_name, codelet_name)
     return 'codelet will run soon!'
 
 @app.route('/configure_death/')
-def config_death():
+def config_death() -> Response:
     global death_threshold
     global death_votes
     config = read_param()
@@ -202,8 +206,8 @@ def config_death():
 
 #TODO: change url
 @app.route('/vote_kill/', methods=['POST'])
-def vote_kill():
-    request_data = json.loads(request.get_json())
+def vote_kill() -> Response:
+    request_data = _request_json()
     url = request_data['url']
     
     response = requests.post(url + '/die', json={'voter_url': '2000'})
@@ -212,11 +216,12 @@ def vote_kill():
 
 
 @app.route('/die/', methods=['POST'])
-def listen_death_democracy():
-    request_data = json.loads(request.get_json())
+def listen_death_democracy() -> str:
+    global death_votes
+    request_data = _request_json()
     voter_url = request_data['voter_url']
 
-    if not hasattr('death_threshold'):
+    if death_threshold <= 0:
         config_death()
 
     config = read_param()
@@ -237,20 +242,19 @@ def listen_death_democracy():
 
 #TODO: implement auth
 @app.route('/die_now/')
-def listen_death_authority():
+def listen_death_authority() -> Response:
     set_param('signals', 'suicide_note', 'true')
     return Response(status=200, headers={})
 
 # TODO: implement this method
-def listen_internal_codelet():
+def listen_internal_codelet() -> int:
     return 0
 
-def split(string): 
-    li = list(string.split(":")) 
-    return li 
+def split(string: str) -> list[str]:
+    return string.split(":")
 
-def validate_idea(idea : dict) -> dict:
-    idea_fields = set(['id', 'name', 'l', 'category', 'scope', 'value'])
+def validate_idea(idea: dict[str, Any]) -> Optional[dict[str, Any]]:
+    idea_fields = {'id', 'name', 'l', 'category', 'scope', 'value'}
 
     if idea_fields.issubset(idea.keys()):
         return idea

@@ -9,18 +9,21 @@
 #      W. Gibaut                                                              #
 #                                                                             #
 # *****************************************************************************#
+from __future__ import annotations
+
 import sys
 import os
 import getopt
 import dct
 import json
+import shlex
 import subprocess
 import random
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
 import time
-from typing import List
+from typing import Union
 
 #TODO: add the possibility of including groups
 def add_node_to_system(node_folder : str, ip_port_hostmode : str, new_node_name : str, node_params : dict, mount_options: str = ''):
@@ -43,10 +46,21 @@ def add_node_to_system(node_folder : str, ip_port_hostmode : str, new_node_name 
     # calls the add simple container script
     #subprocess.check_call(['./add_simple_container.sh', node_folder, ip_port_hostmode, new_node_name])
 
-    subprocess.check_call([f'docker run --name {new_node_name} -d -it --network host {mount_options} --env ROOT_NODE_DIR=/home/node wandgibaut/python_codelet /bin/bash &'], shell=True)
+    docker_run_command = [
+        'docker', 'run',
+        '--name', new_node_name,
+        '-d',
+        '-it',
+        '--network', 'host',
+        *shlex.split(mount_options),
+        '--env', 'ROOT_NODE_DIR=/home/node',
+        'wandgibaut/python_codelet',
+        '/bin/bash',
+    ]
+    subprocess.check_call(docker_run_command)
     time.sleep(2)
-    subprocess.check_call([f'docker cp {node_folder}/. {new_node_name}:/home/node'], shell=True)
-    subprocess.check_call([f'docker exec -d {new_node_name} /home/node/nodeMaster.sh {ip_port_hostmode} &' ], shell=True)
+    subprocess.check_call(['docker', 'cp', f'{node_folder}/.', f'{new_node_name}:/home/node'])
+    subprocess.check_call(['docker', 'exec', '-d', new_node_name, '/home/node/nodeMaster.sh', ip_port_hostmode])
 
 
 def change_inputs_outputs_from_all_codelets(node_folder : str, node_params : dict):
@@ -124,7 +138,7 @@ def add_random_consumer(node_folder : str, ip_port_hostmode : str, number_of_fee
         add_node_to_system(node_folder, ip_port_hostmode, 'random_' + str(random.randint(0, 1000)), inputs)
 
 
-def add_multiple_random_consumers(node_folder : str, ip_port_hostmode_list_json : str, number_of_feeders_array : List[int],
+def add_multiple_random_consumers(node_folder : str, ip_port_hostmode_list_json : str, number_of_feeders_array : list[Union[int, str]],
                                   list_of_memories_json : str, number_of_nodes : int):
     '''
     Adds multiple random consumers to the system
@@ -146,7 +160,7 @@ def add_multiple_random_consumers(node_folder : str, ip_port_hostmode_list_json 
 
 
 # TODO: test
-def add_multiple_scale_consumers(node_folder : str, ip_port_hostmode_list_json : str, number_of_feeders_array : List[int],
+def add_multiple_scale_consumers(node_folder : str, ip_port_hostmode_list_json : str, number_of_feeders_array : list[Union[int, str]],
                                   list_of_memories_json : str, number_of_nodes : int):
     '''
     Adds multiple scale consumers to the system

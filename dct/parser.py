@@ -10,13 +10,22 @@
 #                                                                             #
 # ****************************************************************************#
 
-import sys
 import configparser
+import sys
 
-config = configparser.ConfigParser()
-config.read_file(sys.stdin)
 
-for sec in config.sections():
-    print("declare -A %s" % sec)
-    for key, val in config.items(sec):
-        print('%s[%s]="%s"' % (sec, key, val))
+def emit_bash_arrays(config: configparser.ConfigParser) -> None:
+    for section in config.sections():
+        print("declare -A %s" % section)
+        for key, value in config.items(section):
+            print('%s[%s]="%s"' % (section, key, value))
+
+
+def main() -> None:
+    config = configparser.ConfigParser()
+    config.read_file(sys.stdin)
+    emit_bash_arrays(config)
+
+
+if __name__ == "__main__":
+    main()
