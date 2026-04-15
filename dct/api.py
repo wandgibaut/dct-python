@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Optional
 import json
+import redis
+from pymongo import MongoClient
 
 
 def get_memory_object(memory_name: str, ip_port: str, conn_type: str) -> Any:
@@ -160,7 +162,7 @@ def get_redis_memory(host_port: str, memory_name: str) -> Optional[dict[str, Any
     host = url[0]
     port = url[1]
     try:
-        import redis
+        
 
         client = redis.Redis(host=host, port=port)
         return json.loads(client.get(memory_name))
@@ -189,7 +191,6 @@ def set_redis_memory(
     host = url[0]
     port = url[1]
 
-    import redis
 
     client = redis.Redis(host=host, port=port)
 
@@ -218,15 +219,13 @@ def get_mongo_memory(host_port: str, memory_name: str) -> Optional[dict[str, Any
         :return: memory object or None if error
         :rtype: dict
     '''
-    from bson import json_util
-    from pymongo import MongoClient
-
+    
     client = MongoClient(host_port)
     try:
         base = client['database-raw-memory']
         collection = base[convert(":", memory_name)[0]]
         data = collection.find_one({'name': convert(":", memory_name)[1]})
-        return json.loads(json_util.dumps(data))
+        return json.loads(json.dumps(data))
     except Exception as e:
         print(e)
         return None
@@ -242,7 +241,6 @@ def set_mongo_memory(host_port: str, memory_name: str, field: str, value: Any) -
         :return: 0 if success, -1 if error
         :rtype: int
     '''
-    from pymongo import MongoClient
 
     client = MongoClient(host_port)
     base = client['database-raw-memory']
