@@ -138,7 +138,7 @@ class MindTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             mind = Mind(base_dir=tmp_dir, start_redis=True, redis_port=6380)
-            with mock.patch("dct.set_redis_memory") as set_redis_memory:
+            with mock.patch("dct.api.set_redis_memory") as set_redis_memory:
                 mind.add_memory("workspace", "redis", initial_value={"value": "ready"})
                 set_redis_memory.assert_not_called()
 

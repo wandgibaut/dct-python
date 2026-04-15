@@ -21,7 +21,8 @@ from collections.abc import Iterator
 from typing import Any, Optional, Union
 import requests
 from flask import Flask, request, Response
-import dct
+
+from dct.api import get_memory_object, get_redis_memory, set_memory_object, set_redis_memory
 
 
 root_node_dir = os.getenv('ROOT_NODE_DIR', os.getcwd())
@@ -70,7 +71,7 @@ def get_memory(memory_name: str) -> Union[list[dict[str, Any]], Response]:
                 answer = []
                 for entry in vector:
                     if entry['name'] == memory_name:
-                        answer.append(dct.get_memory_object(memory_name, entry['ip/port'], entry['type']))
+                        answer.append(get_memory_object(memory_name, entry['ip/port'], entry['type']))
                 if answer:
                     return answer
     return Response(status=404, headers={})
@@ -90,7 +91,7 @@ def set_memory() -> Response:
                 vector = json_data_contents[input_or_output]
                 for entry in vector:
                     if entry['name'] == memory_name:
-                        dct.set_memory_object(memory_name, entry['ip/port'], entry['type'], field, value)
+                        set_memory_object(memory_name, entry['ip/port'], entry['type'], field, value)
                         return Response(status=200, headers={})
     return Response(status=404, headers={})
 
@@ -105,7 +106,7 @@ def get_idea(idea_name: str) -> str:
     '''
     
     redis_url = _redis_url_from_request()
-    return json.dumps(dct.get_redis_memory(redis_url, idea_name))  # dict
+    return json.dumps(get_redis_memory(redis_url, idea_name))  # dict
     
 
 @app.route('/set_idea/', methods=['POST'])
@@ -119,13 +120,13 @@ def set_idea() -> Response:
             return Response(status=400, headers={})
 
         idea_name = request_data['full_idea']['name']
-        dct.set_redis_memory(redis_url, idea_name, None, None, full_memory=full_idea)
+        set_redis_memory(redis_url, idea_name, None, None, full_memory=full_idea)
     
     else:
         idea_name = request_data['name']
         field = request_data['field']
         value = request_data['value']
-        dct.set_redis_memory(redis_url, idea_name, field, value)
+        set_redis_memory(redis_url, idea_name, field, value)
     return Response(status=200, headers={})
 
 @app.route('/get_codelet_info/<codelet_name>')

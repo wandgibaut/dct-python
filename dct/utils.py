@@ -14,7 +14,6 @@ from __future__ import annotations
 import sys
 import os
 import getopt
-import dct
 import json
 import shlex
 import subprocess
@@ -24,6 +23,8 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import time
 from typing import Union
+
+from dct.api import get_codelet_info as api_get_codelet_info, get_node_info as api_get_node_info
 
 #TODO: add the possibility of including groups
 def add_node_to_system(node_folder : str, ip_port_hostmode : str, new_node_name : str, node_params : dict, mount_options: str = ''):
@@ -215,7 +216,7 @@ def get_codelet_info(host : str, port : str, codelet_name : str) -> dict:
         :return: the info of the codelet
         :rtype: dict
     '''
-    return dct.get_codelet_info(host, port, codelet_name)
+    return api_get_codelet_info(host, port, codelet_name)
 
 
 def get_all_codelets_infos(list_of_codelets : list[list[str]]) -> list[dict]:
@@ -240,7 +241,7 @@ def get_node_info(host : str, port : str) -> dict:
         :return: the info of the node
         :rtype: dict
     '''
-    return dct.get_node_info(host, port)
+    return api_get_node_info(host, port)
 
 
 def get_all_nodes_infos(list_of_ips : list[str]) -> list[dict]:
