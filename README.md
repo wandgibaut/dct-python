@@ -221,46 +221,6 @@ Run a syntax check:
 python -m compileall dct tests
 ```
 
-## Build and Publish
-
-Install publishing tools:
-
-```bash
-python -m pip install ".[publish]"
-```
-
-Build the source distribution and wheel:
-
-```bash
-python -m build
-```
-
-Check the built distributions:
-
-```bash
-python -m twine check dist/*
-```
-
-Upload to TestPyPI first:
-
-```bash
-python -m twine upload --repository testpypi dist/*
-```
-
-Install from TestPyPI in a clean environment:
-
-```bash
-python -m pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ dct-python
-```
-
-Upload to PyPI:
-
-```bash
-python -m twine upload dist/*
-```
-
-Before each release, update `__version__` in `dct/__init__.py`; the build metadata reads the package version from there.
-
 ## Development Notes
 
 This package is still alpha software. Some runtime integrations depend on external services:
