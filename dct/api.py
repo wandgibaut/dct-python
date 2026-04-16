@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import Any, Optional
 import json
 import redis
@@ -162,7 +160,6 @@ def get_redis_memory(host_port: str, memory_name: str) -> Optional[dict[str, Any
     host = url[0]
     port = url[1]
     try:
-        
 
         client = redis.Redis(host=host, port=port)
         return json.loads(client.get(memory_name))
@@ -191,7 +188,6 @@ def set_redis_memory(
     host = url[0]
     port = url[1]
 
-
     client = redis.Redis(host=host, port=port)
 
     if full_memory is not None:
@@ -219,7 +215,7 @@ def get_mongo_memory(host_port: str, memory_name: str) -> Optional[dict[str, Any
         :return: memory object or None if error
         :rtype: dict
     '''
-    
+
     client = MongoClient(host_port)
     try:
         base = client['database-raw-memory']

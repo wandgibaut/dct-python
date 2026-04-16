@@ -1,0 +1,79 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dct-python"
+description = "Distributed Cognitive Toolkit for codelet-based cognitive architectures."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+dynamic = ["version"]
+authors = [
+    { name = "Wandemberg Gibaut", email = "wgibaut@mail.com" },
+]
+keywords = [
+    "cognitive architecture",
+    "codelets",
+    "distributed systems",
+    "artificial intelligence",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = []
+
+[project.optional-dependencies]
+server = [
+    "flask>=2.2.2",
+    "requests>=2.28.1",
+]
+redis = [
+    "redis>=4.3.4",
+]
+mongo = [
+    "pymongo>=4.2.0",
+]
+viz = [
+    "networkx>=2.8.6",
+    "matplotlib>=3.5.3",
+    "numpy>=1.21",
+]
+all = [
+    "flask>=2.2.2",
+    "matplotlib>=3.5.3",
+    "networkx>=2.8.6",
+    "numpy>=1.21",
+    "pymongo>=4.2.0",
+    "redis>=4.3.4",
+    "requests>=2.28.1",
+]
+publish = [
+    "build>=1.2",
+    "twine>=5",
+]
+
+[project.urls]
+Homepage = "https://github.com/wandgibaut/dct"
+Repository = "https://github.com/wandgibaut/dct"
+Issues = "https://github.com/wandgibaut/dct/issues"
+
+[tool.setuptools]
+packages = ["dct"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+dct = ["py.typed"]
+
+[tool.setuptools.dynamic]
+version = { attr = "dct.__version__" }

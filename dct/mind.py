@@ -10,7 +10,6 @@
 #                                                                             #
 # ****************************************************************************#
 
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -22,7 +21,7 @@ import threading
 import time
 
 from dct.codelets import PythonCodelet
-from dct.api import set_mongo_memory, set_redis_memory
+from dct import api
 
 
 MemoryKind = str
@@ -251,12 +250,17 @@ class Mind:
                 json.dump(memory_value, memory_file)
             return
         if memory.type == "redis":
-            set_redis_memory(memory.location, memory.name, None, None, full_memory=memory_value)
+            api.set_redis_memory(memory.location, memory.name, None, None, full_memory=memory_value)
         elif memory.type == "mongo":
             for field_name, value in memory_value.items():
-                set_mongo_memory(memory.location, memory.name, field_name, value)
+                api.set_mongo_memory(memory.location, memory.name, field_name, value)
         else:
             raise ValueError(f"Unsupported memory type: {memory.type}")
+
+    def _flush_pending_initial_memories(self) -> None:
+        for memory_name, initial_value in list(self._pending_initial_memories.items()):
+            self._write_initial_memory(self.memories[memory_name], initial_value)
+            del self._pending_initial_memories[memory_name]
 
     def _should_defer_initial_memory(self, memory: MemoryConfig) -> bool:
         return memory.type == "redis" and self.start_redis_process and self._redis_process is None

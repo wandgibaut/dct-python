@@ -10,7 +10,6 @@
 #                                                                             #
 # ****************************************************************************#
 
-from __future__ import annotations
 
 __version__ = '0.1.5'
 __author__ = 'Wandemberg Gibaut'

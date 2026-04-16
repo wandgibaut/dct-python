@@ -2,6 +2,8 @@
 
 Python package for the Distributed Cognitive Toolkit (DCT), a toolkit for building distributed cognitive architectures from codelets and shared memory objects.
 
+The PyPI distribution is named `dct-python`, and the import package is named `dct`. This follows the same style as packages such as `scikit-learn`/`sklearn` and `pytorch`/`torch`.
+
 The package provides:
 
 - `Mind`, a standalone in-process coordinator for codelets and memories.
@@ -24,7 +26,23 @@ For editable development:
 python -m pip install -e .
 ```
 
-The package metadata currently supports Python 3.9 and 3.10. The core package can be imported without Redis, MongoDB, or Flask installed, but those dependencies are required when using the corresponding runtime features.
+From PyPI, after publication:
+
+```bash
+python -m pip install dct-python
+```
+
+The package supports Python 3.9 and newer. The core package can be imported without Redis, MongoDB, Flask, or plotting dependencies installed, but those dependencies are required when using the corresponding runtime features.
+
+Optional extras:
+
+```bash
+python -m pip install "dct-python[server]"
+python -m pip install "dct-python[redis]"
+python -m pip install "dct-python[mongo]"
+python -m pip install "dct-python[viz]"
+python -m pip install "dct-python[all]"
+```
 
 ## Codelets
 
@@ -152,6 +170,7 @@ The server exposes HTTP endpoints for node metadata, codelet metadata, memory re
 Run it with:
 
 ```bash
+python -m pip install "dct-python[server]"
 ROOT_NODE_DIR=/path/to/node python -m dct.server 127.0.0.1:5000
 ```
 
@@ -167,6 +186,12 @@ Common endpoints:
 ## Utilities
 
 `dct/utils.py` includes helper commands for Docker-backed nodes and network drawings.
+
+Install visualization dependencies before using network drawing:
+
+```bash
+python -m pip install "dct-python[viz]"
+```
 
 Show the available options:
 
@@ -195,6 +220,46 @@ Run a syntax check:
 ```bash
 python -m compileall dct tests
 ```
+
+## Build and Publish
+
+Install publishing tools:
+
+```bash
+python -m pip install ".[publish]"
+```
+
+Build the source distribution and wheel:
+
+```bash
+python -m build
+```
+
+Check the built distributions:
+
+```bash
+python -m twine check dist/*
+```
+
+Upload to TestPyPI first:
+
+```bash
+python -m twine upload --repository testpypi dist/*
+```
+
+Install from TestPyPI in a clean environment:
+
+```bash
+python -m pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ dct-python
+```
+
+Upload to PyPI:
+
+```bash
+python -m twine upload dist/*
+```
+
+Before each release, update `__version__` in `dct/__init__.py`; the build metadata reads the package version from there.
 
 ## Development Notes
 
